@@ -1,0 +1,48 @@
+---
+output:
+  html_document:
+    theme: journal
+title: "Rugby Analytics"
+
+---
+  
+  
+```{r setup, include=FALSE}
+library(dplyr)
+library(shiny)
+library(rmarkdown)
+library(knitr)
+library(RCurl)
+library(jsonlite)
+library(readxl)
+library(tidyverse)
+library(lubridate)
+library(httr)
+library(tibble)
+
+setwd("/srv/shiny-server/RugbyAnalytics")
+
+####### Read in data
+
+
+joinner <- readRDS(file = "playerprofile.rds")
+totals <- readRDS(file = "totals.rds")
+
+#joinner <- joinner %>% filter(OnSite=="Y") 
+ 
+
+```
+
+Hey you why dont I work???
+
+
+getwd()
+
+
+```{r}
+
+colnames(joinner)
+
+getwd()
+
+```

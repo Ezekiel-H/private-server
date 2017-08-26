@@ -1,0 +1,233 @@
+---
+output:
+  html_document:
+    theme: journal
+title: "Rugby Analytics"
+runtime: shiny
+
+---
+
+
+```{r setup, include=FALSE}
+
+library(tidyverse)
+library(lubridate)
+library(httr)
+library(RCurl)
+library(jsonlite)
+library(readxl)
+library(dplyr)
+library(shiny)
+library(rmarkdown)
+library(knitr)
+library(tibble)
+library(highcharter)
+
+#setwd("/srv/shiny-server/RugbyAnalytics")
+
+locale <- Sys.setlocale(category = "LC_ALL", locale = "C") 
+
+####### 
+
+####### Read in data
+joinner <- readRDS(file = "playerprofile.rds")
+totals <- readRDS(file = "totals.rds")
+MissedPercent <- as.data.frame(readRDS(file = "MissedPercentage.rds"))
+
+joinner <- joinner %>% filter(OnSite=="Y") 
+ 
+
+
+      
+```
+
+
+<style type="text/css">
+
+h1.title {
+  font-size: 38px;
+  text-align: center;
+}
+</br>
+</style>
+
+<center>
+
+```{r, echo = FALSE, fig.align="center"}
+                              
+selectInput("player", "Choose Player:",
+            
+            
+            
+            joinner %>% filter(!is.na(PreviousPlayer)) %>% select(Player))
+
+       
+```
+  
+</center>
+
+<center>
+<div class="row">
+  <div class="center-block col-sm-6">
+
+```{r, echo = FALSE, fig.align="center"}
+
+
+image <- renderImage({
+  # When input$n is 3, filename is ./images/image3.jpeg
+  filename <- normalizePath(file.path('./Assets/Images',
+                                      paste(joinner %>% 
+                                              filter(Player ==  input$player) %>%
+                                              select(lastlower), '.jpg', sep='')))
+  # 
+  # # Return a list containing the filename and alt text
+   list(src = filename,
+        alt = paste("Image number", joinner %>% 
+                      filter(Player ==  input$player) %>%
+        select(lastlower)))
+  
+}, deleteFile = FALSE)
+
+image
+
+br()
+br()
+
+```
+    
+  </div>
+  <div class="center-block col-sm-6">
+
+```{r, echo = FALSE, fig.align="center"}
+
+
+t1 <- renderTable({
+  
+  x <- data.frame(c(
+  joinner %>%
+    filter(Player ==  paste(input$player)) %>%
+    select("Position" = Position, "Nationality" = Nationality, "Date Of Birth" = DOB,"Heigh and Weight" = HeightWeight,"Joined Stade France" = Arrived)
+))
+  n <- x$name
+  x <- as.data.frame(t(x[,-1]))
+  colnames(x) <- n
+  x$myfactor <- factor(row.names(x))
+  (x[,c(2,1)]  
+  
+)},
+                                    colnames=FALSE,
+                                    rownames =FALSE,
+                                    width= "600px"#,
+                                    #spacing= "l"
+)
+
+
+t1
+      
+```
+    
+  </div>
+</div>
+</center>
+
+<center>
+<div class="row-fluid">
+<!--   <div class="span=12"> -->
+
+
+<!-- ```{r, echo = FALSE, fig.align = 'center'} -->
+
+
+<!-- renderTable({ -->
+
+<!--   joinner %>% -->
+<!--     filter(Player ==  paste(input$player)) %>% -->
+<!--     select(Country,"Date Of Birth" = DOB,"Heigh and Weight" = HeightWeight, "Joined Stade France" = Arrived) -->
+
+
+<!-- }) -->
+
+
+<!-- ``` -->
+
+<!--   </div> -->
+</div>
+</center>
+
+<center>
+
+```{r, echo = FALSE, fig.align='center'}
+
+t2 <- renderTable({
+   a <- joinner %>%
+    filter(Player == paste(input$player)) %>%
+    summarise("Missed Tackles" = PercentageMade, "Missed Passive Tackles" = PercentagePassiveMissed, "Average Tackles Per Game" = (Total.Complete/Total.Mins*80))
+  
+    posi <- joinner %>% filter(Player == input$player) %>% select(Position)
+    add_column(a, "Player")
+    
+    b <- totals %>%
+    filter(Position ==  paste(posi)) %>%
+    select("Missed Tackles" = MissedTackles, "Missed Passive Tackles" = MissedPassiveTackles, "Average Tackles Per Game" = AverageTacklesPerGame) 
+    add_column(b, "Position")
+    
+    c <- totals %>%
+    filter(Position ==  "Totals") %>%
+    select("Missed Tackles" = MissedTackles, "Missed Passive Tackles" = MissedPassiveTackles, "Average Tackles Per Game" = AverageTacklesPerGame) 
+    add_column(c, "Team")
+    
+
+    
+  totals  <- bind_rows(a, b, c)
+  add_column(totals, "Group" = c("Player", "Position", "Team"))
+   
+  })
+
+t2
+
+```
+  
+</center>
+<!-- ```{r, echo=FALSE} -->
+
+<!-- pictures <- paste0("Assets/Image/", playerprofile %>% filter(y == input$Loosehead) %>% select(NameLast),"felsina.jpg") -->
+<!-- output_column('<img src=x title="foo bar" style="height:30px;" />') -->
+
+<!-- knitr::kable(pictures, 'markdown', escape = FALSE) -->
+<!-- ``` -->
+
+```{r, echo=FALSE, warning=FALSE}
+
+
+
+p2 <- renderHighchart({
+
+cols <- c('#f442eb', '#000033')
+target <- MissedPercent %>% filter(Player == paste(input$player))
+target <- setNames(data.frame(t(target[,-1])), target[,1])
+names(target) <- paste("Name")
+target <- data.frame("Tackle Type"=rownames(target),target,row.names=NULL) %>% mutate(Group="Player")
+total <- MissedPercent %>% filter(Player == "Total")
+total <- setNames(data.frame(t(total[,-1])), total[,1])
+names(total) <- paste("Name")
+total <- data.frame("Tackle Type"=rownames(total),total,row.names=NULL) %>% mutate(Group="Total")
+target <- bind_rows(target, total)
+
+
+  
+#target$Name <- percent(target$Name, digits = 1)
+
+hchart(target, "column", hcaes(x=Tackle.Type, y=Name, group = Group))%>%
+  hc_tooltip(sort = TRUE, table = TRUE, valueDecimals = 2) %>%
+  hc_yAxis(min = 0, max = 1) %>%
+  hc_colors(cols)
+
+
+})
+
+p2
+```
+***
+
+
+

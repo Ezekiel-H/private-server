@@ -1,0 +1,178 @@
+---
+output:
+  html_document:
+    theme: journal
+title: "Rugby Analytics"
+
+---
+  
+  
+```{r setup, include=FALSE}
+library(tidyverse)
+library(lubridate)
+library(httr)
+library(RCurl)
+library(jsonlite)
+library(readxl)
+library(dplyr)
+library(shiny)
+library(rmarkdown)
+library(knitr)
+library(tibble)
+library(highcharter)
+
+# srv/shiny-server/RugbyAnalytics
+
+#setwd("srv/shiny-server/RugbyAnalytics")
+
+
+
+stats <- readRDS("Stat.rds")
+
+stats$Week[stats$Week == "Week1"] <- 1
+stats$Week[stats$Week == "Week2"] <- 2
+stats$Week[stats$Week == "Week3"] <- 3
+stats$Week[stats$Week == "Week4"] <- 4
+stats$Week[stats$Week == "Week5"] <- 5
+stats$Week[stats$Week == "Week6"] <- 6
+stats$Week[stats$Week == "Week7"] <- 7
+stats$Week[stats$Week == "Week8"] <- 8
+stats$Week[stats$Week == "Week9"] <- 9
+stats$Week[stats$Week == "Week10"] <- 10
+stats$Week[stats$Week == "Week11"] <- 11
+stats$Week[stats$Week == "Week12"] <- 12
+stats$Week[stats$Week == "Week13"] <- 13
+stats$Week[stats$Week == "Week14"] <- 14
+stats$Week[stats$Week == "Week15"] <- 15
+stats$Week[stats$Week == "Week16"] <- 16
+stats$Week[stats$Week == "Week17"] <- 17
+stats$Week[stats$Week == "Week18"] <- 18
+stats$Week[stats$Week == "Week19"] <- 19
+stats$Week[stats$Week == "Week20"] <- 20
+stats$Week[stats$Week == "Week21"] <- 21
+stats$Week[stats$Week == "Week22"] <- 22
+stats$Week[stats$Week == "Week23"] <- 23
+stats$Week[stats$Week == "Week24"] <- 24
+stats$Week[stats$Week == "Week25"] <- 25
+stats$Week[stats$Week == "Week26"] <- 26
+
+stats$Week <- as.integer(stats$Week)
+
+```
+
+
+
+<style type="text/css">
+
+h1.title {
+  font-size: 38px;
+  text-align: center;
+}
+</br>
+</style>
+
+
+This is using data from the [Top 14 Statistiques](http://www.lnr.fr/rugby-top-14/statistiques-rugby-top-14/) site which I scaped by week for the subheading 'Plaquages et ballon joues',      
+
+* Plaquages defensifs reussis 
+* Plaquages defensifs reussis 
+* Plaquages reussis (%)
+
+I took out 
+
+I grouped the top 4 La Rochelle, Toulon, Clermont, La Rochelle and took an average for comparison. Its a bit of a quick throw togeather but you can tell me what you are after.
+
+
+
+```{r, echo = FALSE, fig.align="center", warning=FALSE}
+
+
+top4 <- stats %>% group_by(Week) %>% filter(Clubs %in% c("La Rochelle", "Toulon", "Clermont", "La Rochelle")) 
+
+top4$Tackles[top4$Tackles == 0] <- NA
+
+top4 <- top4 %>% summarise(Tackles = mean(Tackles, na.rm=TRUE)) %>% mutate(Clubs = "Top4")
+                                                                                        
+                                                                                                                          
+stade <- stats %>% group_by(Week) %>% filter(Clubs == "Paris") %>% summarise(Tackles = mean(Tackles, na.rm=TRUE)) %>% mutate(Clubs = "Stade")
+
+stade$Tackles[stade$Tackles == 0] <- NA
+                                                                                                                          
+combined <- bind_rows(top4, stade)
+
+cols <- c('#FF66FF', '#000033', '#dfdee0')
+tacklePercentage <- hchart(combined, "line", hcaes(x = Week, y = Tackles, group = Clubs, order = Week))%>%
+  hc_tooltip(sort = TRUE, table = TRUE, valueDecimals = 2) %>%
+  hc_yAxis(min = 70, max = 100) %>%
+  hc_colors(cols)
+
+###
+
+tacklePercentage
+```
+
+
+This is the tackle percentage for Stade vs the top 4
+
+```{r, echo = FALSE, fig.align="center", warning=FALSE}
+
+top4 <- stats %>% group_by(Week) %>% filter(Clubs %in% c("La Rochelle", "Toulon", "Clermont", "La Rochelle")) 
+
+top4$Tackles_Defensive[top4$Tackles_Defensive == 0] <- NA
+
+top4 <- top4 %>% summarise(Defensive_Tackles = mean(Tackles_Defensive, na.rm=TRUE)) %>% mutate(Clubs = "Top4")
+
+
+stade <- stats %>% group_by(Week) %>% filter(Clubs == "Paris") %>% summarise(Defensive_Tackles = mean(Tackles_Defensive, na.rm=TRUE)) %>% mutate(Clubs = "Stade")
+
+stade$Defensive_Tackles[stade$Defensive_Tackles == 0] <- NA
+
+defensive_tackles_table <- bind_rows(top4, stade)
+
+#combined$Week <- as.character(combined$Week)
+cols <- c('#FF66FF', '#000033','#dfdee0')
+defensive <- hchart(defensive_tackles_table, "line", hcaes(x = Week, y = Defensive_Tackles, group = Clubs))%>%
+  #hc_tooltip(sort = TRUE, table = TRUE, valueDecimals = 2) %>%
+  hc_yAxis(min = 75, max = 200) %>%
+  hc_colors(cols)
+
+###
+
+defensive
+```
+
+This is the defensive tackle total for Stade vs the top 4
+
+<!-- ```{r, echo = FALSE, fig.align="center", warning=FALSE} -->
+
+<!-- top4 <- stats %>% group_by(Week) %>% filter(Clubs %in% c("La Rochelle", "Toulon", "Clermont", "La Rochelle"))  -->
+
+<!-- top4$`Plaquages.offensifs.réussis`[top4$`Plaquages.offensifs.réussis` == 0] <- NA -->
+
+<!-- top4 <- top4 %>% summarise(Offensive_Tackles = mean(top4$`Plaquages.offensifs.réussis`, na.rm=TRUE)) %>% mutate(Clubs = "Top4") -->
+
+
+<!-- stade <- as.data.frame(stats %>% group_by(Week) %>% filter(Clubs == "Paris") %>% select(Offensive_Tackles=`Plaquages.offensifs.réussis`) %>% mutate(Clubs = "Stade")) -->
+
+<!-- stade$Offensive_Tackles[stade$Offensive_Tackles == 0] <- NA -->
+
+<!-- Offensive_Tackles_table <- bind_rows(top4, stade) -->
+
+<!-- #combined$Week <- as.character(combined$Week) -->
+
+<!-- offensive <- hchart(Offensive_Tackles_table, "line", hcaes(x = Week, y = Offensive_Tackles, group = Clubs)) -->
+
+
+<!-- ### -->
+
+
+<!-- offensive -->
+<!-- ``` -->
+
+<!-- This is the offensive tackle total for Stade vs the top 4 -->
+
+
+
+
+
+
