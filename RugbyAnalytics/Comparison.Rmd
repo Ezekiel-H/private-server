@@ -1,0 +1,398 @@
+---
+output:
+  
+  html_document:
+    title: "Comparison Defence Analytics"
+runtime: shiny
+
+---
+  
+  
+```{r setup, include=FALSE}
+
+library(tidyverse)
+library(lubridate)
+library(httr)
+library(RCurl)
+library(jsonlite)
+library(readxl)
+library(dplyr)
+library(shiny)
+library(rmarkdown)
+library(knitr)
+library(tibble)
+library(highcharter)
+library(scales)
+
+#setwd("/srv/shiny-server/RugbyAnalytics")
+
+locale <- Sys.setlocale(category = "LC_ALL", locale = "C") 
+
+####### 
+
+####### Read in data
+
+
+stadeplayerbase <- as.data.frame(readRDS(file = "stadeplayerbase.RDS"))
+stadeplayerbase$Names <- trimws(stadeplayerbase$Names)
+
+stadeplayerbase$week <- as.character(stadeplayerbase$week)
+week <- as.data.frame(as.character(1:13))
+
+names(week) <- "week"
+stadeplayerbase$TacklesPerMin <- stadeplayerbase$Tackles/stadeplayerbase$Mins*80
+stadeplayerbase$TacklesPercentage <- stadeplayerbase$Tackles/(stadeplayerbase$Tackles +stadeplayerbase$MissedTackles)
+stadeplayerbase <- stadeplayerbase[order(stadeplayerbase$Names),]
+
+###--------------------------------------------------------------------###
+
+Comparison <- as.data.frame(readRDS(file = "Comparison.RDS"))
+Comparison$Names <- trimws(Comparison$Names)
+
+Comparison$week <- as.character(Comparison$week)
+Comparison$TacklesPerMin <- Comparison$Tackles/Comparison$Mins*80
+Comparison$TacklesPercentage <- Comparison$Tackles/(Comparison$Tackles +Comparison$MissedTackles)
+Comparison <- Comparison[order(Comparison$Names),]
+
+
+
+ComparisonTotals <- as.data.frame(readRDS(file = "ComparisonTotals.RDS"))
+
+
+
+###--------------------------------------------------------------------###
+
+
+stadeplayertotals <- as.data.frame(readRDS(file = "stadeplayertotals.RDS"))
+stadeplayertotals$Names <- trimws(stadeplayertotals$Names)
+
+stadeplayertable <- as.data.frame(readRDS(file = "stadeplayertable.RDS"))
+####
+#playerstats <- as.data.frame(readRDS(file = "playerstats.RDS"))
+
+#stadeplayertotals <- left_join(stadeplayertotals, playerstats, by = "Names")
+####
+
+
+
+# stadeplayertotals <- stadeplayertotals %>%
+#   group_by(Names) %>%
+#   summarise("Tackles" = mean(Tackles, na.rm = TRUE), "Competition Average" = mean(Tackles.CompetitionTAverage), "Position Average" =mean(Tackles.CompetitionAverage.Position))
+
+
+
+
+# stadeplayertotals$TacklesPercentage <- stadeplayertotals$Tackles/(stadeplayertotals$Tackles+stadeplayertotals$MissedTackles)
+
+
+
+
+
+
+# this is missing , mean(Tackles.TeamAverage)
+cols <- c('#f442eb' , '#00008B')
+
+
+
+```
+
+<style type="text/css">
+  
+  h1.title {
+    font-size: 38px;
+    text-align: center;
+  }
+
+<!-- .col2 { -->
+    <!--     columns: 2 200px;         /* number of columns and width in pixels*/ -->
+    <!--     -webkit-columns: 2 200px; /* chrome, safari */ -->
+    <!--     -moz-columns: 2 200px;    /* firefox */ -->
+    <!--   } -->
+  
+  
+  </style>
+  
+  <center>
+  
+  
+  </br>
+  
+  
+  
+  
+  
+<div class="row">
+  <div class="col-md-6">
+  
+```{r, echo = FALSE, fig.align="center"}
+# 
+# selectInput("Team", "Choose Team:",
+#             
+#             stadeplayerbase %>% distinct(Names))
+
+
+
+selectInput("player", "Choose Player:",
+            
+            stadeplayerbase %>% distinct(Names))
+
+
+```
+
+</div>
+  <div class="col-md-6">
+
+```{r, echo = FALSE, fig.align="center"}
+
+selectInput("Opponent", "Choose Opponent:",
+            
+            Comparison %>% distinct(Names))
+
+```
+
+  </div>
+</div>
+
+***
+  
+  
+  </center>
+  
+  <center>
+  <div class="row">
+  <div class="col-md-6">
+  
+  
+  
+```{r, echo=FALSE, warning=FALSE}
+
+# "Aaron Cruden")
+
+p1 <- renderHighchart({
+  
+  target <- stadeplayerbase %>% filter(Names == paste(input$player))
+  target <- target %>% select(week, TacklesPerMin)
+  target <- left_join(week, target, by = "week")
+  
+  target2 <- Comparison %>% filter(Names == paste(input$Opponent))
+  target2 <- target2 %>% select(week, TacklesPerMin)
+  target2 <- left_join(week, target2, by = "week")
+  
+  highchart() %>% 
+    hc_xAxis(categories = target$week) %>% 
+    hc_add_series(name = "Tackles", data = target$TacklesPerMin, type = "column") %>%
+    hc_add_series(name = "Tackles Opponent", data = target2$TacklesPerMin, type = "column") %>%
+    hc_tooltip(sort = TRUE, table = TRUE, valueDecimals = 2) %>%
+    hc_colors(cols) %>%
+    hc_title(text = "Weighted Tackles Per Game")
+  
+  # %>%
+  #   hc_tooltip(sort = TRUE, table = TRUE, valueDecimals = 2) %>%
+  #   hc_yAxis(min = 0, max = 1) %>%
+  #   hc_colors(cols)
+  
+  
+})
+
+p1
+```
+
+
+</div>
+  <div class="col-md-6">
+  
+  
+  
+```{r, echo=FALSE, warning=FALSE}
+
+
+
+pt4 <- renderHighchart({
+  
+  
+  
+  target <- stadeplayertotals %>% filter(Names == paste(input$player))
+  target2 <- ComparisonTotals %>% filter(Names == paste(input$Opponent))
+  
+  
+  highchart() %>%
+    
+    hc_add_series(name = "Tackles", data = target$TacklesWeighted, type = "column") %>%
+    hc_add_series(name = "Tackles Opponent", data = target2$TacklesWeighted, type = "column") %>%
+    hc_tooltip(sort = TRUE, table = TRUE, valueDecimals = 2, type = "column") %>%
+    hc_colors(cols) %>%
+    hc_title(text = "Total Weighted Tackles per game")
+  
+  # %>%
+  #   hc_tooltip(sort = TRUE, table = TRUE, valueDecimals = 2) %>%
+  #   hc_yAxis(min = 0, max = 1) %>%
+  #   hc_colors(cols)
+  
+  
+})
+
+pt4
+```
+
+
+</div>
+  </div>
+  <div class="row">
+  <div class="col-md-6">
+  
+  
+  
+```{r, echo=FALSE, warning=FALSE}
+
+
+
+p2 <- renderHighchart({
+  
+  target <- stadeplayerbase %>% filter(Names == paste(input$player))
+  target <- target %>% select(week, TacklesPercentage)
+  target <- left_join(week, target, by = "week")
+  
+  target2 <- Comparison %>% filter(Names == paste(input$Opponent))
+  target2 <- target2 %>% select(week, TacklesPercentage)
+  target2 <- left_join(week, target2, by = "week")
+  
+  highchart() %>% 
+    hc_title(text = "Tackle Percentage")%>%
+    hc_xAxis(categories = target$week) %>% 
+    hc_add_series(name = "Tackle %", data = target$TacklesPercentage, type = "column") %>%
+    hc_add_series(name = "Tackle Opponent %", data = target2$TacklesPercentage, type = "column") %>%
+    hc_tooltip(sort = TRUE, table = TRUE, valueDecimals = 2) %>%
+    hc_colors(cols) %>%
+    hc_yAxis(min = .5, max = 1)
+  
+  
+  
+})
+
+p2
+```
+
+
+
+</div>
+  <div class="col-md-6">
+  
+```{r, echo=FALSE, warning=FALSE}
+
+
+
+pt5 <- renderHighchart({
+  
+  
+  
+  target <- stadeplayertotals %>% filter(Names == paste(input$player))
+  
+  
+  target2 <- ComparisonTotals %>% filter(Names == paste(input$Opponent))
+  
+  highchart() %>%
+    
+    hc_add_series(name = "Tackles", data = target$TacklePercentage, type = "column") %>%
+    hc_add_series(name = "Tackles Opponent", data = target2$TacklePercentage, type = "column") %>%
+    hc_tooltip(sort = TRUE, table = TRUE, valueDecimals = 2, type = "column") %>%
+    hc_colors(cols) %>%
+    hc_title(text = "Total Tackle Percentage")
+  
+  # %>%
+  #   hc_tooltip(sort = TRUE, table = TRUE, valueDecimals = 2) %>%
+  #   hc_yAxis(min = 0, max = 1) %>%
+  #   hc_colors(cols)
+  
+  
+})
+
+pt5
+```
+
+
+</div>
+  
+  </div>
+  
+  <div class="row">
+  <div class="col-md-6">
+  
+  
+```{r, echo=FALSE, warning=FALSE}
+
+
+
+p3 <- renderHighchart({
+  
+  
+  
+  target <- stadeplayerbase %>% filter(Names == paste(input$player))
+  target <- target %>% select(week, Tackles)
+  target <- left_join(week, target, by = "week")
+  
+  target2 <- Comparison %>% filter(Names == paste(input$Opponent))
+  target2 <- target2 %>% select(week, Tackles)
+  target2 <- left_join(week, target2, by = "week")
+  
+  highchart() %>% 
+    hc_xAxis(categories = target$week) %>% 
+    hc_add_series(name = "Tackles", data = target$Tackles, type = "column") %>%
+    hc_add_series(name = "Tackles Opponent", data = target2$Tackles, type = "column") %>%
+    hc_tooltip(sort = TRUE, table = TRUE, valueDecimals = 2) %>%
+    hc_colors(cols)%>%
+    hc_title(text = "Average Tackles per game")
+  
+  # %>%
+  #   hc_tooltip(sort = TRUE, table = TRUE, valueDecimals = 2) %>%
+  #   hc_yAxis(min = 0, max = 1) %>%
+  #   hc_colors(cols)
+  
+  
+})
+
+p3
+```
+
+
+
+</div>
+  <div class="col-md-6">
+  
+  
+  
+  
+```{r, echo=FALSE, warning=FALSE}
+
+
+
+pt6 <- renderHighchart({
+  
+  
+  
+  target <- stadeplayertotals %>% filter(Names == paste(input$player))
+  
+  
+  target2 <- ComparisonTotals %>% filter(Names == paste(input$Opponent))
+  
+  highchart() %>%
+    
+    hc_add_series(name = "Tackles", data = target$Tackles, type = "column") %>%
+    hc_add_series(name = "Tackles Opponent", data = target2$Tackles, type = "column") %>%
+    hc_tooltip(sort = TRUE, table = TRUE, valueDecimals = 2, type = "column") %>%
+    hc_colors(cols) %>%
+    hc_title(text = "Total Average Tackles per game")
+  
+  # %>%
+  #   hc_tooltip(sort = TRUE, table = TRUE, valueDecimals = 2) %>%
+  #   hc_yAxis(min = 0, max = 1) %>%
+  #   hc_colors(cols)
+  
+  
+})
+
+pt6
+```
+
+
+</div>
+  </div>

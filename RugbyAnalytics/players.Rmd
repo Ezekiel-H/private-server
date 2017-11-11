@@ -34,6 +34,14 @@ joinner <- readRDS(file = "playerprofile.rds")
 totals <- readRDS(file = "totals.rds")
 MissedPercent <- as.data.frame(readRDS(file = "MissedPercentage.rds"))
 
+stadeplayerbase <- as.data.frame(readRDS(file = "stadeplayerbase.RDS"))
+stadeplayerbase$Names <- trimws(stadeplayerbase$Names)
+stadeplayerbase$week <- as.character(stadeplayerbase$week)
+week <- as.data.frame(as.character(1:13))
+names(week) <- "week"
+
+
+
 joinner <- joinner %>% filter(OnSite=="Y") 
  
 
@@ -227,6 +235,45 @@ hchart(target, "column", hcaes(x=Tackle.Type, y=Name, group = Group))%>%
 
 p2
 ```
+
+
+```{r, echo=FALSE, warning=FALSE}
+
+
+
+p3 <- renderHighchart({
+
+
+
+cols <- c('#00008B' , '#00BFFF', '#f442eb', '#000033')
+target <- stadeplayerbase %>% filter(Names == paste(input$player))
+
+target <- target %>% select(week, Tackles, Tackles.TeamAverage, Tackles.CompetitionAverage, Tackles.TeamAverage.Position)
+
+
+target <- left_join(week, target, by = "week")
+
+highchart() %>% 
+              hc_xAxis(categories = target$week) %>% 
+      hc_add_series(name = "Tackles", data = target$Tackles, type = "column") %>%
+      hc_add_series(name = "Team Average", data = target$Tackles.TeamAverage) %>%
+      hc_add_series(name = "Competition Average", data = target$Tackles.CompetitionAverage) %>%
+      hc_add_series(name = "Position Average", data = target$Tackles.TeamAverage.Position) %>%
+          hc_tooltip(sort = TRUE, table = TRUE, valueDecimals = 2) %>%
+          hc_colors(cols)
+            
+# %>%
+#   hc_tooltip(sort = TRUE, table = TRUE, valueDecimals = 2) %>%
+#   hc_yAxis(min = 0, max = 1) %>%
+#   hc_colors(cols)
+
+
+})
+
+p3
+```
+
+
 ***
 
 
