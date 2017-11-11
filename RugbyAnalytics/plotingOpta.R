@@ -269,3 +269,32 @@ Comparisontotals <- Comparison %>%
 saveRDS(Comparison, "Comparison.RDS")
 
 saveRDS(Comparisontotals, "Comparisontotals.RDS")
+
+
+
+####################
+TeamBase <- rugbybase %>% group_by(Team, week) %>%
+            summarise(Tackles.CompetitionAverage.Position = mean(Tackles, na.rm = TRUE),
+                                        TacklesPerMin.TeamAverage = mean(Tackles/Mins*80, na.rm = TRUE),
+                                        TacklePercentage.CompetitionAverage.Position = mean(Tackles/(Tackles + MissedTackles), na.rm = TRUE),
+                                        TacklesTotal = sum(Tackles, na.rm = TRUE),
+                                        TacklesTotalMissed = sum(MissedTackles, na.rm = TRUE)
+) %>% filter(Team != "null")
+
+TeamBaseTotals <- rugbybase %>% group_by(Team) %>%
+  summarise(Tackles.CompetitionAverage.Position = mean(Tackles, na.rm = TRUE),
+            TacklesPerMin.TeamAverage = mean(Tackles/Mins*80, na.rm = TRUE),
+            TacklePercentage.CompetitionAverage.Position = mean(Tackles/(Tackles + MissedTackles), na.rm = TRUE),
+            TacklesTotal = sum(Tackles, na.rm = TRUE),
+            TacklesTotalMissed = sum(MissedTackles, na.rm = TRUE)
+  ) %>% filter(Team != "null") 
+
+saveRDS(TeamBase, "TeamBase.RDS")
+
+saveRDS(TeamBaseTotals, "TeamBaseTotals.RDS")
+
+
+TeamBaseTotals <- readRDS(file = "TeamBaseTotals.RDS")
+
+
+head(TeamBaseTotals)

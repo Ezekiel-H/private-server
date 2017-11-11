@@ -153,7 +153,7 @@ t2 <- renderTable({
   x <- data.frame(c(
   stadeplayertable %>%
     filter(Names ==   paste(input$player)) %>%
-    select("Week" = week, "Played" = Played,"Winner" = Winner, "Position" = Position, "Mins" = Mins, "Tackles" = Tackles, "MissedTackles" = MissedTackles, "Turnovers" = Turnovers)%>%
+    select("Week" = week, "Played" = Played,"Winner" = Winner, "Opposition Score" = OppositionScore, "Position" = Position, "Mins" = Mins, "Tackles" = Tackles, "MissedTackles" = MissedTackles, "Turnovers" = Turnovers)%>%
     arrange(Week)
 )) 
   
